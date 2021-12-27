@@ -28,6 +28,9 @@ OBJS = \
 	vectors.o\
 	vm.o\
 
+CONFIG = os.config
+include ${CONFIG}
+
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
 
@@ -88,6 +91,20 @@ CFLAGS += -fno-pie -no-pie
 endif
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
+endif
+
+# set scheduler C Flag
+
+ifeq ($(SCHEDULER),SCHEDULER_RR)
+CFLAGS += -DSCHEDULER_RR
+endif
+
+ifeq ($(SCHEDULER),SCHEDULER_SJF)
+CFLAGS += -DSCHEDULER_SJF
+endif
+
+ifeq ($(SCHEDULER),SCHEDULER_MLFQ)
+CFLAGS += -DSCHEDULER_MLFQ
 endif
 
 xv6.img: bootblock kernel
