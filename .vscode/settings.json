@@ -1,8 +1,13 @@
 {
   "conventionalCommits.scopes": [
-    "KERNEL"
+    "KERNEL",
+    "user app"
   ],
   "files.associations": {
-    "user.h": "c"
+    "user.h": "c",
+    "spinlock.h": "c",
+    "x86.h": "c",
+    "syscall.h": "c",
+    "types.h": "c"
   }
 }

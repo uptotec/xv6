@@ -89,6 +89,11 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
 
+#ifdef SCHEDULER_MLFQ
+  p->queue = 0;
+  p->time_slice = 1;
+#endif
+
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -311,47 +316,108 @@ wait(void)
   }
 }
 
-//PAGEBREAK: 42
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
-//      via swtch back to the scheduler.
-void
-scheduler(void)
+void swtch_process(struct proc *p, struct cpu *c)
+{
+  c->proc = p;
+  switchuvm(p);
+  p->state = RUNNING;
+  swtch(&(c->scheduler), p->context);
+  switchkvm();
+}
+
+void RR(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
-  for(;;){
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state != RUNNABLE)
+      continue;
+
+    swtch_process(p, c);
+
+    c->proc = 0;
+  }
+
+  return;
+}
+
+void SJF()
+{
+}
+
+void MLFQ()
+{
+  struct proc *p;
+  struct proc *p2;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE && p->queue == 0)
+    {
+      swtch_process(p, c);
+
+      c->proc = 0;
+    }
+  }
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE && p->queue < 1)
+      break;
+
+    if (p->state == RUNNABLE && p->queue == 1)
+    {
+      swtch_process(p, c);
+
+      c->proc = 0;
+    }
+  }
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE && p->queue < 2)
+      break;
+
+    if (p->state == RUNNABLE && p->queue == 2)
+    {
+      swtch_process(p, c);
+
+      c->proc = 0;
+    }
+  }
+}
+
+// PAGEBREAK: 42
+//  Per-CPU process scheduler.
+//  Each CPU calls scheduler() after setting itself up.
+//  Scheduler never returns.  It loops, doing:
+//   - choose a process to run
+//   - swtch to start running that process
+//   - eventually that process transfers control
+//       via swtch back to the scheduler.
+void scheduler(void)
+{
+  for (;;)
+  {
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+#if defined(SCHEDULER_RR)
+    RR();
+#elif defined(SCHEDULER_SJF)
+    SJF();
+#elif defined(SCHEDULER_MLFQ)
+    MLFQ();
+#endif
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
     release(&ptable.lock);
-
   }
 }
 
@@ -387,6 +453,12 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+#ifdef SCHEDULER_MLFQ
+  if (myproc()->queue < 2)
+  {
+    myproc()->queue += 1;
+  }
+#endif
   sched();
   release(&ptable.lock);
 }
