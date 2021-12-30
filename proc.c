@@ -354,7 +354,7 @@ void MLFQ()
   struct proc *p2;
   struct cpu *c = mycpu();
   c->proc = 0;
-
+q1:
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state == RUNNABLE && p->queue == 0)
@@ -367,8 +367,11 @@ void MLFQ()
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    if (p->state == RUNNABLE && p->queue < 1)
-      break;
+    for (p2 = p; p2 < &ptable.proc[NPROC]; p2++)
+    {
+      if (p->state == RUNNABLE && p->queue < 1)
+        goto q1;
+    }
 
     if (p->state == RUNNABLE && p->queue == 1)
     {
@@ -380,8 +383,12 @@ void MLFQ()
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    if (p->state == RUNNABLE && p->queue < 2)
-      break;
+
+    for (p2 = p; p2 < &ptable.proc[NPROC]; p2++)
+    {
+      if (p->state == RUNNABLE && p->queue < 2)
+        goto q1;
+    }
 
     if (p->state == RUNNABLE && p->queue == 2)
     {
