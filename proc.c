@@ -323,6 +323,8 @@ void swtch_process(struct proc *p, struct cpu *c)
   p->state = RUNNING;
   swtch(&(c->scheduler), p->context);
   switchkvm();
+
+  c->proc = 0;
 }
 
 void RR(void)
@@ -337,8 +339,6 @@ void RR(void)
       continue;
 
     swtch_process(p, c);
-
-    c->proc = 0;
   }
 
   return;
@@ -358,11 +358,7 @@ q1:
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state == RUNNABLE && p->queue == 0)
-    {
       swtch_process(p, c);
-
-      c->proc = 0;
-    }
   }
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -374,16 +370,11 @@ q1:
     }
 
     if (p->state == RUNNABLE && p->queue == 1)
-    {
       swtch_process(p, c);
-
-      c->proc = 0;
-    }
   }
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-
     for (p2 = p; p2 < &ptable.proc[NPROC]; p2++)
     {
       if (p->state == RUNNABLE && p->queue < 2)
@@ -391,11 +382,7 @@ q1:
     }
 
     if (p->state == RUNNABLE && p->queue == 2)
-    {
       swtch_process(p, c);
-
-      c->proc = 0;
-    }
   }
 }
 
