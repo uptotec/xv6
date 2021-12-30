@@ -89,9 +89,13 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
 
-#ifdef SCHEDULER_MLFQ
+#if defined(SCHEDULER_MLFQ) && defined(MLFQ0)
   p->queue = 0;
-  p->time_slice = 1;
+  p->time_slice = MLFQ0;
+#endif
+
+#if defined(SCHEDULER_RR) && defined(RR0)
+  p->time_slice = RR0;
 #endif
 
   release(&ptable.lock);
@@ -319,6 +323,7 @@ wait(void)
 void swtch_process(struct proc *p, struct cpu *c)
 {
   c->proc = p;
+
   switchuvm(p);
   p->state = RUNNING;
   swtch(&(c->scheduler), p->context);
@@ -337,18 +342,17 @@ void RR(void)
   {
     if (p->state != RUNNABLE)
       continue;
-
     swtch_process(p, c);
   }
 
   return;
 }
 
-void SJF()
+void SJF(void)
 {
 }
 
-void MLFQ()
+void MLFQ(void)
 {
   struct proc *p;
   struct proc *p2;
@@ -384,6 +388,8 @@ q1:
     if (p->state == RUNNABLE && p->queue == 2)
       swtch_process(p, c);
   }
+
+  return;
 }
 
 // PAGEBREAK: 42
@@ -447,11 +453,24 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
-#ifdef SCHEDULER_MLFQ
+#if defined(SCHEDULER_MLFQ) && defined(MLFQ1) && defined(MLFQ2)
   if (myproc()->queue < 2)
   {
     myproc()->queue += 1;
   }
+
+  if (myproc()->queue == 1)
+  {
+    myproc()->time_slice = MLFQ1;
+  }
+  else if (myproc()->queue == 2)
+  {
+    myproc()->time_slice = MLFQ2;
+  }
+#endif
+
+#if defined(SCHEDULER_RR) && defined(RR0)
+  myproc()->time_slice = RR0;
 #endif
   sched();
   release(&ptable.lock);

@@ -93,10 +93,10 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-# set scheduler C Flag
+# set scheduler C Flags
 
 ifeq ($(SCHEDULER),SCHEDULER_RR)
-CFLAGS += -DSCHEDULER_RR
+CFLAGS += -DSCHEDULER_RR -DRR0=$(RR)
 endif
 
 ifeq ($(SCHEDULER),SCHEDULER_SJF)
@@ -104,7 +104,7 @@ CFLAGS += -DSCHEDULER_SJF
 endif
 
 ifeq ($(SCHEDULER),SCHEDULER_MLFQ)
-CFLAGS += -DSCHEDULER_MLFQ
+CFLAGS += -DSCHEDULER_MLFQ -DMLFQ0=$(MLFQ0) -DMLFQ1=$(MLFQ1) -DMLFQ2=$(MLFQ2)
 endif
 
 xv6.img: bootblock kernel
