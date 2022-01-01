@@ -12,7 +12,7 @@ struct cpu {
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
-
+#include "proctime.h"
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
 // Don't need to save all the segment registers (%cs, etc),
@@ -50,7 +50,7 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int queue;                   // for MLFQ : which queue the process currently in
-  int time_slice;
+  struct proctime time;        // process time counters
 };
 
 // Process memory is laid out contiguously, low addresses first:

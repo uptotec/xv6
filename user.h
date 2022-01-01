@@ -1,3 +1,4 @@
+#include "proctime.h"
 struct stat;
 struct rtcdate;
 
@@ -23,6 +24,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int waitandgettime(struct proctime *time);
 
 // ulib.c
 int stat(const char*, struct stat*);

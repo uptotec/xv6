@@ -88,14 +88,21 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  acquire(&tickslock);
+  p->time.start_time = ticks;
+  release(&tickslock);
+  p->time.run_time = 0;
+  p->time.wait_time = 0;
+  p->time.sleep_time = 0;
+  p->time.n_context_switches = 0;
 
 #if defined(SCHEDULER_MLFQ) && defined(MLFQ0)
   p->queue = 0;
-  p->time_slice = MLFQ0;
+  p->time.time_slice = MLFQ0;
 #endif
 
 #if defined(SCHEDULER_RR) && defined(RR0)
-  p->time_slice = RR0;
+  p->time.time_slice = RR0;
 #endif
 
   release(&ptable.lock);
@@ -122,6 +129,37 @@ found:
   p->context->eip = (uint)forkret;
 
   return p;
+}
+
+void updateproctime(void)
+{
+
+  acquire(&ptable.lock);
+
+  struct proc *p;
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    switch (p->state)
+    {
+    case RUNNING:
+      p->time.run_time++;
+      break;
+
+    case RUNNABLE:
+      p->time.wait_time++;
+      break;
+
+    case SLEEPING:
+      p->time.sleep_time++;
+      break;
+
+    default:
+      break;
+    }
+  }
+
+  release(&ptable.lock);
 }
 
 //PAGEBREAK: 32
@@ -272,6 +310,9 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  acquire(&tickslock);
+  curproc->time.end_time = ticks;
+  release(&tickslock);
   sched();
   panic("zombie exit");
 }
@@ -320,12 +361,66 @@ wait(void)
   }
 }
 
+int waitandgettime(struct proctime *time)
+{
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+
+  acquire(&ptable.lock);
+  for (;;)
+  {
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->parent != curproc)
+        continue;
+      havekids = 1;
+      if (p->state == ZOMBIE)
+      {
+        // Found one.
+
+        time->start_time = p->time.start_time;
+        time->end_time = p->time.end_time;
+        time->run_time = p->time.run_time;
+        time->wait_time = p->time.wait_time;
+        time->sleep_time = p->time.sleep_time;
+        time->n_context_switches = p->time.n_context_switches;
+
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if (!havekids || curproc->killed)
+    {
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock); // DOC: wait-sleep
+  }
+}
+
 void swtch_process(struct proc *p, struct cpu *c)
 {
   c->proc = p;
 
   switchuvm(p);
   p->state = RUNNING;
+  p->time.n_context_switches++;
   swtch(&(c->scheduler), p->context);
   switchkvm();
 
@@ -358,19 +453,20 @@ void MLFQ(void)
   struct proc *p2;
   struct cpu *c = mycpu();
   c->proc = 0;
-q1:
+q0:
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state == RUNNABLE && p->queue == 0)
       swtch_process(p, c);
   }
 
+q1:
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    for (p2 = p; p2 < &ptable.proc[NPROC]; p2++)
+    for (p2 = ptable.proc; p2 < &ptable.proc[NPROC]; p2++)
     {
       if (p->state == RUNNABLE && p->queue < 1)
-        goto q1;
+        goto q0;
     }
 
     if (p->state == RUNNABLE && p->queue == 1)
@@ -379,11 +475,18 @@ q1:
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    for (p2 = p; p2 < &ptable.proc[NPROC]; p2++)
+    int lowestqueue = 2;
+    for (p2 = ptable.proc; p2 < &ptable.proc[NPROC]; p2++)
     {
-      if (p->state == RUNNABLE && p->queue < 2)
-        goto q1;
+      if (p->state == RUNNABLE && p->queue < lowestqueue)
+        lowestqueue = p->queue;
     }
+
+    if (lowestqueue == 0)
+      goto q0;
+
+    if (lowestqueue == 1)
+      goto q1;
 
     if (p->state == RUNNABLE && p->queue == 2)
       swtch_process(p, c);
@@ -452,25 +555,26 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  myproc()->state = RUNNABLE;
-#if defined(SCHEDULER_MLFQ) && defined(MLFQ1) && defined(MLFQ2)
-  if (myproc()->queue < 2)
+  struct proc *p = myproc();
+  p->state = RUNNABLE;
+#if defined(SCHEDULER_MLFQ) && defined(MLFQ0) && defined(MLFQ1) && defined(MLFQ2)
+  if (p->queue < 2)
   {
-    myproc()->queue += 1;
+    p->queue += 1;
   }
 
-  if (myproc()->queue == 1)
+  if (p->queue == 1)
   {
-    myproc()->time_slice = MLFQ1;
+    p->time.time_slice = MLFQ1;
   }
-  else if (myproc()->queue == 2)
+  else if (p->queue == 2)
   {
-    myproc()->time_slice = MLFQ2;
+    p->time.time_slice = MLFQ2;
   }
 #endif
 
 #if defined(SCHEDULER_RR) && defined(RR0)
-  myproc()->time_slice = RR0;
+  p->time.time_slice = RR0;
 #endif
   sched();
   release(&ptable.lock);
@@ -570,6 +674,9 @@ kill(int pid)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       p->killed = 1;
+      acquire(&tickslock);
+      p->time.end_time = ticks;
+      release(&tickslock);
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;

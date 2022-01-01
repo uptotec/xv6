@@ -4,6 +4,7 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
+struct proctime;
 struct rtcdate;
 struct spinlock;
 struct sleeplock;
@@ -124,6 +125,8 @@ void swtch_process(struct proc *p, struct cpu *c);
 void RR(void);
 void SJF(void);
 void MLFQ(void);
+void updateproctime(void);
+int waitandgettime(struct proctime *time);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

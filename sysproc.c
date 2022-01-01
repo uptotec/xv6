@@ -89,3 +89,14 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int sys_waitandgettime(void)
+{
+
+  struct proctime *time;
+
+  if (argptr(0, (char **)&time, sizeof(struct proctime)) < 0)
+    return 12;
+
+  return waitandgettime(time);
+}
