@@ -127,6 +127,7 @@ void SJF(void);
 void MLFQ(void);
 void updateproctime(void);
 int waitandgettime(struct proctime *time);
+int forkandrename(char *);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

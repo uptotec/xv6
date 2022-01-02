@@ -106,7 +106,7 @@ trap(struct trapframe *tf)
 #if defined(SCHEDULER_MLFQ) || defined(SCHEDULER_RR)
   if (myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER)
   {
-    // cprintf("\nname: %s, pid: %d, queue: %d, run: %d, wait: %d\n", myproc()->name, myproc()->pid, myproc()->queue, myproc()->time.run_time, myproc()->time.wait_time);
+    cprintf("\nname: %s, pid: %d, queue: %d, run: %d, wait: %d\n", myproc()->name, myproc()->pid, myproc()->queue, myproc()->time.run_time, myproc()->time.wait_time);
     if (myproc()->time.time_slice != -1)
       if (!--myproc()->time.time_slice)
         yield();

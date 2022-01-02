@@ -100,3 +100,14 @@ int sys_waitandgettime(void)
 
   return waitandgettime(time);
 }
+
+int sys_forkandrename(void)
+{
+
+  char *name;
+
+  if (argstr(0, &name) < 0)
+    return -1;
+
+  return forkandrename(name);
+}

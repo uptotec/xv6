@@ -25,6 +25,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int waitandgettime(struct proctime *time);
+int forkandrename(char *);
 
 // ulib.c
 int stat(const char*, struct stat*);
