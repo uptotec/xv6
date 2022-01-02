@@ -5,12 +5,22 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "proghistory.h"
 #include "spinlock.h"
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+struct
+{
+  struct spinlock lock;
+  int historycount;
+  struct proghistory history[NHISTORY];
+} runhistory;
+void addpredictedtime(struct proc *);
+void updateproghistory(struct proc *);
 
 static struct proc *initproc;
 
@@ -170,8 +180,12 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
+  acquire(&runhistory.lock);
+  runhistory.historycount = 0;
+  release(&runhistory.lock);
+
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -187,6 +201,9 @@ userinit(void)
   p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
+#ifdef SCHEDULER_SJF
+  addpredictedtime(p);
+#endif
   p->cwd = namei("/");
 
   // this assignment to p->state lets other cores
@@ -257,6 +274,9 @@ fork(void)
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
+#ifdef SCHEDULER_SJF
+  addpredictedtime(np);
+#endif
   pid = np->pid;
 
   acquire(&ptable.lock);
@@ -302,6 +322,9 @@ int forkandrename(char *name)
 
   safestrcpy(np->name, name, sizeof(curproc->name));
 
+#ifdef SCHEDULER_SJF
+  addpredictedtime(np);
+#endif
   pid = np->pid;
 
   acquire(&ptable.lock);
@@ -358,6 +381,9 @@ exit(void)
   acquire(&tickslock);
   curproc->time.end_time = ticks;
   release(&tickslock);
+#ifdef SCHEDULER_SJF
+  updateproghistory(curproc);
+#endif
   sched();
   panic("zombie exit");
 }
@@ -432,6 +458,7 @@ int waitandgettime(struct proctime *time)
         time->wait_time = p->time.wait_time;
         time->sleep_time = p->time.sleep_time;
         time->n_context_switches = p->time.n_context_switches;
+        time->predicted_time = p->time.predicted_time;
 
         pid = p->pid;
         kfree(p->kstack);
@@ -472,24 +499,124 @@ void swtch_process(struct proc *p, struct cpu *c)
   c->proc = 0;
 }
 
-void RR(void)
+void addpredictedtime(struct proc *np)
 {
-  struct proc *p;
-  struct cpu *c = mycpu();
-  c->proc = 0;
+  acquire(&runhistory.lock);
 
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+#if defined(SJFDEF)
+  struct proghistory *prog;
+
+  int flag = 0;
+  for (prog = runhistory.history; prog < &runhistory.history[NHISTORY]; prog++)
   {
-    if (p->state != RUNNABLE)
+    if (prog->state == EMPTY)
       continue;
-    swtch_process(p, c);
+
+    if (strncmp(prog->name, np->name, sizeof(prog->name)))
+      continue;
+
+    flag = 1;
+    np->time.predicted_time = prog->predicted_time;
+    break;
   }
+
+  if (!flag)
+  {
+    np->time.predicted_time = SJFDEF;
+  }
+#endif
+
+  release(&runhistory.lock);
 
   return;
 }
 
+float getalfa(void)
+{
+#ifdef ALFA
+
+  int x = ALFA;
+  if (x == 1)
+    return 0;
+  else if (x == 2)
+    return 0.3;
+  else if (x == 3)
+    return 0.5;
+  else if (x == 4)
+    return 0.7;
+  else if (x == 5)
+    return 1;
+
+#endif
+  return 0.5;
+}
+
+void updateproghistory(struct proc *p)
+{
+  acquire(&runhistory.lock);
+  struct proghistory *prog;
+  int flag = 0;
+  for (prog = runhistory.history; prog < &runhistory.history[NHISTORY]; prog++)
+  {
+    if (prog->state == EMPTY)
+      continue;
+    if (strncmp(prog->name, p->name, sizeof(prog->name)))
+      continue;
+
+    flag = 1;
+    float a = getalfa();
+    prog->predicted_time = (p->time.run_time * a) + ((1 - a) * prog->predicted_time);
+    prog->last_predicted_time = p->time.predicted_time;
+    prog->last_run_time = p->time.run_time;
+    prog->last_wait_time = p->time.wait_time;
+    prog->last_sleep_time = p->time.sleep_time;
+    break;
+  }
+
+  if (flag)
+  {
+    release(&runhistory.lock);
+    return;
+  }
+
+  for (prog = runhistory.history; prog < &runhistory.history[NHISTORY]; prog++)
+  {
+    if (prog->state == USED)
+      continue;
+
+    prog->state = USED;
+    safestrcpy(prog->name, p->name, sizeof(p->name));
+    prog->predicted_time = p->time.run_time;
+    prog->last_predicted_time = p->time.predicted_time;
+    prog->last_run_time = p->time.run_time;
+    prog->last_wait_time = p->time.wait_time;
+    prog->last_sleep_time = p->time.sleep_time;
+    break;
+  }
+
+  release(&runhistory.lock);
+}
+
 void SJF(void)
 {
+  struct proc *p;
+  struct proc *shortest = 0;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  int x = 0;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state != RUNNABLE)
+      continue;
+    if (!x++)
+      shortest = p;
+    // cprintf("\nname: %s, pid: %d, queue: %d, estimate: %d\n", p->name, p->pid, p->queue, p->time.predicted_time);
+    if (p->time.predicted_time < shortest->time.predicted_time)
+      shortest = p;
+  }
+  if (shortest != 0)
+    swtch_process(shortest, c);
+  return;
 }
 
 void MLFQ(void)
@@ -535,6 +662,22 @@ q1:
 
     if (p->state == RUNNABLE && p->queue == 2)
       swtch_process(p, c);
+  }
+
+  return;
+}
+
+void RR(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state != RUNNABLE)
+      continue;
+    swtch_process(p, c);
   }
 
   return;
@@ -722,6 +865,9 @@ kill(int pid)
       acquire(&tickslock);
       p->time.end_time = ticks;
       release(&tickslock);
+#ifdef SCHEDULER_SJF
+      updateproghistory(p);
+#endif
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;

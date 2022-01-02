@@ -114,17 +114,17 @@ rerun:
 
   // selectionSort(pid, time, nProc);
 
-  printf(1, "\npid\t start\t running\t wating\t sleeping\t no. context switchs\t endTime\n");
+  printf(1, "\npid\t start\t running\t wating\t sleeping\t no. context switchs\t endTime\t estimate\n");
   for (i = 0; i < nProc; i++)
   {
-    printf(1, "%d\t %d\t %d\t\t %d\t %d\t\t %d\t\t\t %d\n",
+    printf(1, "%d\t %d\t %d\t\t %d\t %d\t\t %d\t\t\t %d\t\t %d\n",
            pid[i],
            time[i].start_time,
            time[i].run_time,
            time[i].wait_time,
            time[i].sleep_time,
            time[i].n_context_switches,
-           time[i].end_time);
+           time[i].end_time, time[i].predicted_time);
 
     average_run += time[i].run_time;
     average_wait += time[i].wait_time;
