@@ -16,9 +16,9 @@ struct {
 struct
 {
   struct spinlock lock;
-  int historycount;
   struct proghistory history[NHISTORY];
 } runhistory;
+
 void addpredictedtime(struct proc *);
 void updateproghistory(struct proc *);
 
@@ -181,7 +181,6 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   acquire(&runhistory.lock);
-  runhistory.historycount = 0;
   release(&runhistory.lock);
 
   p = allocproc();

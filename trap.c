@@ -107,7 +107,7 @@ trap(struct trapframe *tf)
   if (myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER)
   {
     // cprintf("\nname: %s, pid: %d, queue: %d, estimate: %d\n", myproc()->name, myproc()->pid, myproc()->queue, myproc()->time.predicted_time);
-    if (myproc()->time.time_slice != -1)
+    if (myproc()->time.time_slice != -1 && strncmp(myproc()->name, "tester", sizeof(myproc()->name)))
       if (!--myproc()->time.time_slice)
         yield();
   }
