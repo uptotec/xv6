@@ -15,13 +15,13 @@ char *startmessage =
 \narrival time may have additional delay until the tester gets rescheduled to fork the next process\n";
 
 char *proctable =
-    "\n-------------------------------------------------------------------------------------------------------------------------------\n\
-pid\t start\t\t running\t wating\t\t sleeping\t no. context switchs\t endTime\t estimate\n\
--------------------------------------------------------------------------------------------------------------------------------\n";
+    "\n════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n\
+  pid\t\t start\t\t running\t wating\t\t sleeping\t no. context switchs\t endTime\t estimate\n\
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n";
 
-char *procrow = "%d\t %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t\t %d\t\t %d\n";
+char *procrow = "  %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t\t %d\t\t %d\n";
 
-char *newrow = "-------------------------------------------------------------------------------------------------------------------------------\n";
+char *newrow = "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n";
 
 char *averageresults = "\naverage turnaround Time : %d, average wating Time : %d\n";
 
@@ -62,6 +62,15 @@ int main(int argc, char *argv[])
   struct proctime *time = (struct proctime *)malloc(nProc * sizeof(struct proctime));
 
   printf(1, startmessage, nProc, delay, nRuns);
+  printf(1, "\ncurrent scheduler: ");
+
+#if defined(SCHEDULER_RR)
+  printf(1, "Round Robin Scheduler\n");
+#elif defined(SCHEDULER_SJF)
+  printf(1, "Shortest Job First Scheduler\n");
+#elif defined(SCHEDULER_MLFQ)
+  printf(1, "Multi-Level Feedback Queue Scheduler\n");
+#endif
 
 rerun:
 

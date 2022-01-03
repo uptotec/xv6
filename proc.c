@@ -491,7 +491,6 @@ void swtch_process(struct proc *p, struct cpu *c)
 
   switchuvm(p);
   p->state = RUNNING;
-  p->time.n_context_switches++;
   swtch(&(c->scheduler), p->context);
   switchkvm();
 
@@ -564,11 +563,9 @@ void updateproghistory(struct proc *p)
 
     flag = 1;
     float a = getalfa();
+    prog->last_predicted_time = prog->predicted_time;
     prog->predicted_time = (p->time.run_time * a) + ((1 - a) * prog->predicted_time);
-    prog->last_predicted_time = p->time.predicted_time;
     prog->last_run_time = p->time.run_time;
-    prog->last_wait_time = p->time.wait_time;
-    prog->last_sleep_time = p->time.sleep_time;
     break;
   }
 
@@ -585,11 +582,9 @@ void updateproghistory(struct proc *p)
 
     prog->state = USED;
     safestrcpy(prog->name, p->name, sizeof(p->name));
+    prog->last_predicted_time = prog->predicted_time;
     prog->predicted_time = p->time.run_time;
-    prog->last_predicted_time = p->time.predicted_time;
     prog->last_run_time = p->time.run_time;
-    prog->last_wait_time = p->time.wait_time;
-    prog->last_sleep_time = p->time.sleep_time;
     break;
   }
 
@@ -743,6 +738,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   struct proc *p = myproc();
+  p->time.n_context_switches++;
   p->state = RUNNABLE;
 #if defined(SCHEDULER_MLFQ) && defined(MLFQ0) && defined(MLFQ1) && defined(MLFQ2)
   if (p->queue < 2)

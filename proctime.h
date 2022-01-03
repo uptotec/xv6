@@ -5,7 +5,7 @@ struct proctime
   int run_time;           // number of ticks the process was RUNNING in
   int wait_time;          // number of ticks the process was RUNNABLE in
   int sleep_time;         // number of ticks the process was SLEEPING in
-  int n_context_switches; // number of context switches (how many times it entered the scheduler)
+  int n_context_switches; // number of context switches (how many times it yielded)
   int time_slice;         // for RR && MLFQ : remaining time slice until the next yield call (remaining quantum time)
   int predicted_time;     // predicted next cpu burst time
 };
