@@ -5,7 +5,7 @@
 char *instructions =
     "\ntester [int][number of processes] [int][arrival delay] [int][number of runs]\n\n\
 arrival time may have additional delay until the tester gets rescheduled to fork the next process\n\
-number of proccess must be in range 1 <= number of proccess <= 99\n\
+number of proccess must be in range 1 <= number of proccess <= 60\n\
 number of runs must be >= 1\n\n";
 
 char *wrongarg = "\nwrong arguments\n";
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     exit();
   }
 
-  if (atoi(argv[1]) < 1 && atoi(argv[1]) > 99)
+  if (atoi(argv[1]) < 1 && atoi(argv[1]) > 60)
   {
     printf(1, wrongarg);
     printf(1, instructions);
