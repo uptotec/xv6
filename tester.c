@@ -15,17 +15,48 @@ char *startmessage =
 \narrival time may have additional delay until the tester gets rescheduled to fork the next process\n";
 
 char *proctable =
-    "\n════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n\
-  pid\t\t start\t\t running\t wating\t\t sleeping\t no. context switchs\t endTime\t estimate\n\
-════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n";
+    "\n══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n\
+  pid\t\t start\t\t running\t wating\t\t sleeping\t end\t\t estimate\t no. context switchs\n\
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n";
 
-char *procrow = "  %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t\t %d\t\t %d\n";
+char *procrow =
+    "  %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t %d\t\t %d\n";
 
-char *newrow = "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n";
+char *newrow =
+    "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n";
 
 char *averageresults = "\naverage turnaround Time : %d, average wating Time : %d\n";
 
 char *finished = "\ntest finished successfully\n";
+
+char *testerProgName(int i)
+{
+  char *forkname = "tester  ";
+
+  *(forkname + 6) = ((i + 1) / 10) + 48;
+  *(forkname + 7) = ((i + 1) % 10) + 48;
+
+  return forkname;
+}
+
+void cpuBurst(int i, int nProc, int *proc)
+{
+  if ((proc[i] = forkandrename(testerProgName(i))) == 0)
+  {
+    int x, y = 0;
+    if (i < (nProc / 2))
+    {
+      for (x = 0; x < (atoi("5000000") * (i + 1)); x++)
+        y += x;
+    }
+    else
+    {
+      for (x = 0; x < (atoi("5000000") * (nProc - i)); x++)
+        y += x;
+    }
+    exit();
+  }
+}
 
 int main(int argc, char *argv[])
 {
@@ -47,12 +78,14 @@ int main(int argc, char *argv[])
   {
     printf(1, wrongarg);
     printf(1, instructions);
+    exit();
   }
 
   if (atoi(argv[3]) < 1)
   {
     printf(1, wrongarg);
     printf(1, instructions);
+    exit();
   }
 
   int nProc = atoi(argv[1]), delay = atoi(argv[2]), nRuns = atoi(argv[3]);
@@ -66,10 +99,12 @@ int main(int argc, char *argv[])
 
 #if defined(SCHEDULER_RR)
   printf(1, "Round Robin Scheduler\n");
+  printf(1, "tester program will have infinite quantam time to ensure more accurate results\n");
 #elif defined(SCHEDULER_SJF)
   printf(1, "Shortest Job First Scheduler\n");
 #elif defined(SCHEDULER_MLFQ)
   printf(1, "Multi-Level Feedback Queue Scheduler\n");
+  printf(1, "tester program will have infinite quantam time and will stay in the first queue to ensure more accurate results\n");
 #endif
 
 rerun:
@@ -81,26 +116,7 @@ rerun:
   printf(1, "\nrun no.%d\n", runs);
   for (i = 0; i < nProc; i++)
   {
-    char *forkname = "tester  ";
-
-    *(forkname + 6) = ((i + 1) / 10) + 48;
-    *(forkname + 7) = ((i + 1) % 10) + 48;
-
-    if ((proc[i] = forkandrename(forkname)) == 0)
-    {
-      int x, y = 0;
-      if (i < (nProc / 2))
-      {
-        for (x = 0; x < (atoi("5000000") * (i + 1)); x++)
-          y += x;
-      }
-      else
-      {
-        for (x = 0; x < (atoi("5000000") * (nProc - i)); x++)
-          y += x;
-      }
-      exit();
-    }
+    cpuBurst(i, nProc, proc);
     sleep(delay);
   }
 
@@ -119,9 +135,9 @@ rerun:
            time[i].run_time,
            time[i].wait_time,
            time[i].sleep_time,
-           time[i].n_context_switches,
            time[i].end_time,
-           time[i].predicted_time);
+           time[i].predicted_time,
+           time[i].n_context_switches);
 
     printf(1, newrow);
 

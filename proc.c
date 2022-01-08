@@ -597,14 +597,15 @@ void SJF(void)
   struct proc *shortest = 0;
   struct cpu *c = mycpu();
   c->proc = 0;
-  int x = 0;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state != RUNNABLE)
       continue;
-    if (!x++)
+    if (!shortest)
+    {
       shortest = p;
-    // cprintf("\nname: %s, pid: %d, queue: %d, estimate: %d\n", p->name, p->pid, p->queue, p->time.predicted_time);
+      continue;
+    }
     if (p->time.predicted_time < shortest->time.predicted_time)
       shortest = p;
   }
