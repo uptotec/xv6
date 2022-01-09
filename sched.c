@@ -23,7 +23,7 @@ char *getalfa(void)
 int main(int argc, char *argv[])
 {
 #if defined(SCHEDULER_RR) && defined(RR0)
-  printf(1, "Round Robin Scheduler with quantum time = %d\n" RR0);
+  printf(1, "Round Robin Scheduler with quantum time = %d\n", RR0);
 #elif defined(SCHEDULER_SJF) && defined(SJFDEF) && defined(ALFA)
   printf(1, "Shortest Job First Scheduler with default estimated burst time = %d and smoothing factor(α) = %s\n", SJFDEF, getalfa());
 #elif defined(SCHEDULER_MLFQ) && defined(MLFQ0) && defined(MLFQ1) && defined(MLFQ2)
