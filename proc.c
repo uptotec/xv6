@@ -16,6 +16,7 @@ struct {
 struct
 {
   struct spinlock lock;
+  int progid;
   struct proghistory history[NHISTORY];
 } runhistory;
 
@@ -181,6 +182,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   acquire(&runhistory.lock);
+  runhistory.progid = 1;
   release(&runhistory.lock);
 
   p = allocproc();
@@ -515,12 +517,14 @@ void addpredictedtime(struct proc *np)
 
     flag = 1;
     np->time.predicted_time = prog->predicted_time;
+    np->progid = prog->progid;
     break;
   }
 
   if (!flag)
   {
     np->time.predicted_time = SJFDEF;
+    np->progid = ++runhistory.progid;
   }
 #endif
 
@@ -558,7 +562,7 @@ void updateproghistory(struct proc *p)
   {
     if (prog->state == EMPTY)
       continue;
-    if (strncmp(prog->name, p->name, sizeof(prog->name)))
+    if (p->progid != prog->progid)
       continue;
 
     flag = 1;
@@ -585,6 +589,7 @@ void updateproghistory(struct proc *p)
     prog->last_predicted_time = prog->predicted_time;
     prog->predicted_time = p->time.run_time;
     prog->last_run_time = p->time.run_time;
+    prog->progid = p->progid;
     break;
   }
 

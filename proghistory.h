@@ -7,6 +7,7 @@ enum progstate
 struct proghistory
 {
   char name[16];           // name of the program
+  int progid;              // program ID
   enum progstate state;    // is this slot used
   int predicted_time;      // time prediction for the next cpu burst
   int last_predicted_time; // last prediction for the cpu burst
