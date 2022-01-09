@@ -7,7 +7,6 @@ struct proc;
 struct proctime;
 struct rtcdate;
 struct spinlock;
-struct sleeplock;
 struct stat;
 struct superblock;
 
@@ -53,6 +52,13 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, char*, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, char*, uint, uint);
+int createSwapFile(struct proc *p);
+int readFromSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size);
+int writeToSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size);
+int removeSwapFile(struct proc *p);
+int writePageToFile(struct proc *p, int pageVaddr, pde_t *pgdir);
+int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char *buff);
+void copySwapFile(struct proc *fromP, struct proc *toP);
 
 // ide.c
 void            ideinit(void);
@@ -69,13 +75,15 @@ char*           kalloc(void);
 void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
+int getFreePages();
+int getTotalPages();
 
 // kbd.c
 void            kbdintr(void);
 
 // lapic.c
 void            cmostime(struct rtcdate *r);
-int             lapicid(void);
+int cpunum(void);
 extern volatile uint*    lapic;
 void            lapiceoi(void);
 void            lapicinit(void);
@@ -90,7 +98,9 @@ void            end_op();
 
 // mp.c
 extern int      ismp;
+int mpbcpu(void);
 void            mpinit(void);
+void mpstartthem(void);
 
 // picirq.c
 void            picenable(int);
@@ -104,33 +114,34 @@ int             pipewrite(struct pipe*, char*, int);
 
 //PAGEBREAK: 16
 // proc.c
-int             cpuid(void);
+struct proc *copyproc(struct proc *);
 void            exit(void);
 int             fork(void);
 int             growproc(int);
-int             kill(int);
-struct cpu*     mycpu(void);
-struct proc*    myproc();
+int kill(int);
 void            pinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
-void            sched(void);
-void            setproc(struct proc*);
+void sched(void);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
-void            yield(void);
-void swtch_process(struct proc *p, struct cpu *c);
+void yield(void);
 void RR(void);
 void SJF(void);
 void MLFQ(void);
 void updateproctime(void);
 int waitandgettime(struct proctime *time);
 int forkandrename(char *);
+int printpagingstat(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
+
+// sysfile
+struct inode *create(char *path, short type, short major, short minor);
+int isdirempty(struct inode *dp);
 
 // spinlock.c
 void            acquire(struct spinlock*);
@@ -140,12 +151,6 @@ void            initlock(struct spinlock*, char*);
 void            release(struct spinlock*);
 void            pushcli(void);
 void            popcli(void);
-
-// sleeplock.c
-void            acquiresleep(struct sleeplock*);
-void            releasesleep(struct sleeplock*);
-int             holdingsleep(struct sleeplock*);
-void            initsleeplock(struct sleeplock*, char*);
 
 // string.c
 int             memcmp(const void*, const void*, uint);
@@ -181,6 +186,7 @@ void            uartputc(int);
 // vm.c
 void            seginit(void);
 void            kvmalloc(void);
+void vmenable(void);
 pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);
 int             allocuvm(pde_t*, uint, uint);
@@ -193,6 +199,11 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
+int pageIsInFile(int vAddr, pde_t *pgdir);
+int getPageFromFile(int vAddr);
+void updateAccessCounters();
+void printRamCtrlr();  // debugging
+void printFileCtrlr(); // debugging
+int isNONEpolicy();
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

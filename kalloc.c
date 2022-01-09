@@ -11,7 +11,7 @@
 
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
-                   // defined by the kernel linker script in kernel.ld
+static int freePages = 0;
 
 struct run {
   struct run *next;
@@ -22,6 +22,15 @@ struct {
   int use_lock;
   struct run *freelist;
 } kmem;
+
+int getFreePages(){
+  return freePages;
+}
+
+int getTotalPages(){
+  return PGROUNDDOWN(PHYSTOP-v2p(end))/PGSIZE;
+}
+
 
 // Initialization happens in two phases.
 // 1. main() calls kinit1() while still using entrypgdir to place just
@@ -51,6 +60,7 @@ freerange(void *vstart, void *vend)
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
     kfree(p);
 }
+
 //PAGEBREAK: 21
 // Free the page of physical memory pointed at by v,
 // which normally should have been returned by a
@@ -61,9 +71,9 @@ kfree(char *v)
 {
   struct run *r;
 
-  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+  if((uint)v % PGSIZE || v < end || v2p(v) >= PHYSTOP)
     panic("kfree");
-
+  freePages++;
   // Fill with junk to catch dangling refs.
   memset(v, 1, PGSIZE);
 
@@ -79,13 +89,11 @@ kfree(char *v)
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
-char*
-kalloc(void)
-{
+char* kalloc(void){
   struct run *r;
-
   if(kmem.use_lock)
     acquire(&kmem.lock);
+  freePages--;
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
