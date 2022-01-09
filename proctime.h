@@ -8,4 +8,6 @@ struct proctime
   int n_context_switches; // number of context switches (how many times it yielded)
   int time_slice;         // for RR && MLFQ : remaining time slice until the next yield call (remaining quantum time)
   int predicted_time;     // predicted next cpu burst time
+  int faultCounter;
+  int countOfPagedOut;
 };

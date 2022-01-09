@@ -1,18 +1,36 @@
+// Segments in proc->gdt.
+#define NSEGS     7
+
 // Per-CPU state
 struct cpu {
-  uchar apicid;                // Local APIC ID
+  uchar id;                    // Local APIC ID; index into cpus[] below
   struct context *scheduler;   // swtch() here to enter scheduler
   struct taskstate ts;         // Used by x86 to find stack for interrupt
   struct segdesc gdt[NSEGS];   // x86 global descriptor table
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  struct proc *proc;           // The process running on this cpu or null
+  
+  // Cpu-local storage variables; see below
+  struct cpu *cpu;
+  struct proc *proc;           // The currently-running process.
 };
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
 #include "proctime.h"
+
+// Per-CPU variables, holding pointers to the
+// current cpu and to the current process.
+// The asm suffix tells gcc to use "%gs:0" to refer to cpu
+// and "%gs:4" to refer to proc.  seginit sets up the
+// %gs segment register so that %gs refers to the memory
+// holding those two variables in the local cpu's struct cpu.
+// This is similar to how thread-local variables are implemented
+// in thread libraries such as Linux pthreads.
+extern struct cpu *cpu asm("%gs:0");       // &cpus[cpunum()]
+extern struct proc *proc asm("%gs:4");     // cpus[cpunum()].proc
+
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
 // Don't need to save all the segment registers (%cs, etc),
@@ -34,6 +52,23 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+enum page_struct_state
+{
+  NOTUSED,
+  INUSE
+};
+
+// pages struct
+struct pagecontroller {
+  enum page_struct_state state;  
+  pde_t* pgdir;
+  uint userPageVAddr;
+  uint accessCount;
+  uint loadOrder;
+};
+
+
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -52,6 +87,12 @@ struct proc {
   char name[16];               // Process name (debugging)
   int queue;                   // for MLFQ : which queue the process currently in
   struct proctime time;        // process time counters
+
+  //Swap file. must initiate with create swap file
+  struct file *swapFile;			//page file
+  struct pagecontroller fileCtrlr[MAX_TOTAL_PAGES-MAX_PYSC_PAGES];
+  struct pagecontroller ramCtrlr[MAX_PYSC_PAGES];
+  uint loadOrderCounter; //load/creation
 };
 
 // Process memory is laid out contiguously, low addresses first:
