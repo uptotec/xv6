@@ -202,8 +202,8 @@ UPROGS=\
 	_sched\
 	_tester\
 
-fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+fs.img: mkfs README.md $(UPROGS)
+	./mkfs fs.img README.md $(UPROGS)
 
 -include *.d
 
@@ -216,7 +216,7 @@ clean:
 
 # make a printout
 FILES = $(shell grep -v '^\#' runoff.list)
-PRINT = runoff.list runoff.spec README toc.hdr toc.ftr $(FILES)
+PRINT = runoff.list runoff.spec README.md toc.hdr toc.ftr $(FILES)
 
 xv6.pdf: $(PRINT)
 	./runoff
@@ -271,7 +271,7 @@ EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c memtest.c shced.c tester.c\
-	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+	README.md dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil \
 
 dist:
